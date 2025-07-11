@@ -4,7 +4,7 @@ import { Database, Tables } from './types';
 // Create a single supabase client for interacting with your database
 export const supabase = createClient<Database>(
   'https://yerlropclkwmpkxiofut.supabase.co', // Use actual Supabase project URL
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inllcmxyb3BjbGt3bXBreGlvZnV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE1NTQ2OTksImV4cCI6MjA2NzEzMDY5OX0.4VNGlGfWJmLAhX_wHGpYOHhzOKjA8rJGQQQQQQQQQQQ',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inllcmxyb3BjbGt3bXBreGlvZnV0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTU1NDY5OSwiZXhwIjoyMDY3MTMwNjk5fQ.NKgjrso9Ep8L8yDptDPw6_F3xpEDc-p_k-ZHa3tGoGg',
   {
     auth: {
       storage: sessionStorage,
