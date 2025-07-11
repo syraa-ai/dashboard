@@ -18,7 +18,6 @@ import DashboardLayout from "./components/DashboardLayout";
 import DashboardHome from "./pages/dashboard/DashboardHome";
 import CallHistoryPage from "./pages/dashboard/CallHistoryPage";
 import PatientRecordDetailView from "./pages/dashboard/PatientRecordDetailView";
-// import Dashboard from "./pages/Dashboard"; // Removed as it's not directly used in routes anymore
 import AppointmentsPage from "./pages/dashboard/AppointmentsPage";
 
 // Layout Components

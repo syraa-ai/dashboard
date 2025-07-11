@@ -33,6 +33,12 @@ const DashboardHome = () => {
     
     const fetchData = async () => {
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) {
+          console.error('No authenticated user found');
+          return;
+        }
+        
         // Fetch all records from the last 30 days for better data visualization
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -40,6 +46,7 @@ const DashboardHome = () => {
         const { data: recordsData, error: recordsError } = await supabase
           .from('call_history')
           .select('*')
+          .eq('user_id', session.user.id)
           .gte('created_at', thirtyDaysAgo.toISOString())
           .order('created_at', { ascending: false });
         
@@ -110,7 +117,7 @@ const DashboardHome = () => {
   
   // Process data for display - using correct column names
   const callsWithRecordings = callRecords.filter(record => record.call_start);
-  const appointmentRecords = callRecords.filter(record => record.appointment_date);
+  const appointmentRecords = callRecords.filter(record => record.appointment_status);
   
   const callsAnswered = callsWithRecordings.filter(record => record.call_status === 'answered').length;
   const callsMissed = callsWithRecordings.filter(record => record.call_status === 'missed').length;
@@ -119,8 +126,8 @@ const DashboardHome = () => {
     record.created_at && isToday(parseISO(record.created_at))
   ).length;
   
-  const todayAppointments = appointmentRecords.filter(apt => 
-    apt.appointment_date && isToday(parseISO(apt.appointment_date))
+  const todayAppointments = callRecords.filter(record => 
+    record.appointment_status && record.created_at && isToday(parseISO(record.created_at))
   ).length;
   
   const totalRecords = callRecords.length;
@@ -132,9 +139,9 @@ const DashboardHome = () => {
     .slice(0, 5);
 
   // Create upcoming appointments list
-  const upcomingAppointments = appointmentRecords
-    .filter(apt => apt.appointment_date && new Date(apt.appointment_date) >= startOfDay(new Date()))
-    .sort((a, b) => new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime())
+  const upcomingAppointments = callRecords
+    .filter(record => record.appointment_status && record.created_at && new Date(record.created_at) >= startOfDay(new Date()))
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     .slice(0, 3);
   
   // Format time for display to match AppointmentsPage style (MMM dd, yyyy, HH:mm:ss)
@@ -357,7 +364,7 @@ const DashboardHome = () => {
                           </div>
                           <div className="flex items-center text-xs text-slate-400">
                             <Clock className="h-3 w-3 mr-1" />
-                            {apt.call_start}
+                            {apt.created_at && format(parseISO(apt.created_at), 'MMM d, h:mm a')}
                           </div>
                         </div>
                       </div>

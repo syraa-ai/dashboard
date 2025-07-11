@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import DashboardSidebar from '@/components/DashboardSidebar';
 import DashboardHeader from '@/components/DashboardHeader';
-import { supabase, getProfileById } from '@/integrations/supabase/client';
+import { supabase, getProfileWithEmail } from '@/integrations/supabase/client';
 import type { Profile } from '@/integrations/supabase/client';
 
 const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<(Profile & { email?: string }) | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,7 +29,7 @@ const DashboardLayout = () => {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
-          const userProfile = await getProfileById(session.user.id);
+          const userProfile = await getProfileWithEmail(session.user.id);
           setProfile(userProfile);
         }
       } catch (error) {

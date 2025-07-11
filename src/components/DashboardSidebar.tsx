@@ -13,12 +13,9 @@ import {
   Settings,
   Users,
   Microscope,
-  Sparkles,
-  CreditCard,
   PhoneCall,
   MessageSquare,
   HelpCircle,
-  BarChart
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -80,10 +77,7 @@ const DashboardSidebar = ({
     { name: 'Dashboard', href: '/app/dashboard/home', icon: HomeIcon },
     { name: 'Call History', href: '/app/dashboard/call-history', icon: PhoneCall },
     { name: 'Appointments', href: '/app/dashboard/appointments', icon: Calendar },
-    { name: 'Analytics', href: '/app/dashboard/analytics', icon: BarChart },
-    { name: 'AI Playground', href: '/app/dashboard/ai-playground', icon: Sparkles },
     { name: 'Settings', href: '/app/dashboard/settings', icon: Settings },
-    { name: 'Billing', href: '/app/dashboard/billing', icon: CreditCard },
     { name: 'Support', href: '/app/dashboard/support', icon: HelpCircle },
   ];
 

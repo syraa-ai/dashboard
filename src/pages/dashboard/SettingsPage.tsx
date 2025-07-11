@@ -343,13 +343,9 @@ const SettingsPage = () => {
                 
                 <div className="space-y-3">
                   <Label>AI Voice Settings</Label>
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={() => navigate('/dashboard/ai-playground')}
-                  >
-                    Configure in AI Playground
-                  </Button>
+                  <p className="text-sm text-gray-500">
+                    AI voice configuration will be available in a future update
+                  </p>
                 </div>
               </CardContent>
               <CardFooter className="flex justify-end">
