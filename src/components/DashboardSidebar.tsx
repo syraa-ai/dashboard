@@ -209,9 +209,9 @@ const DashboardSidebar = ({
               <p className="text-sm font-medium text-white truncate">
                 {profile?.name || 'Welcome, User'}
               </p>
-:start_line:219
--------
-              {/* Removed profile.email as it's not in the Profile type */}
+              <p className="text-xs text-slate-400 truncate">
+                {profile?.email || 'Loading email...'}
+              </p>
             </div>
           </div>
         </div>

@@ -2,6 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
+
+// Enhanced appointment type with caller information
+type AppointmentWithCaller = Tables<'appointment_details'> & {
+  caller_name?: string;
+};
 import DashboardStats from '@/components/dashboard/DashboardStats';
 import DashboardCharts from '@/components/dashboard/DashboardCharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +29,7 @@ import { Button } from "@/components/ui/button";
 const DashboardHome = () => {
   const { profile = {} } = useOutletContext<{ profile: any }>() || {};
   const [callRecords, setCallRecords] = useState<Tables<'call_history'>[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentWithCaller[]>([]);
   const [loading, setLoading] = useState(true);
   const subscriptionRef = useRef<any>(null);
   
@@ -51,10 +57,48 @@ const DashboardHome = () => {
           .order('created_at', { ascending: false });
         
         if (recordsError) throw recordsError;
+
+        // Fetch appointments from appointment_details table
+        const { data: appointmentsData, error: appointmentsError } = await supabase
+          .from('appointment_details')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false });
+
+        if (appointmentsError) {
+          console.error('Error fetching appointments:', appointmentsError);
+        }
+
+        // For each appointment with a call_id, try to get the caller name from call_history
+        const appointmentsWithCallers: AppointmentWithCaller[] = [];
+        
+        for (const appointment of appointmentsData || []) {
+          let callerName = 'Unknown';
+          
+          if (appointment.call_id) {
+            // Try to find matching call in call_history by call_id
+            const { data: callData, error: callError } = await supabase
+              .from('call_history')
+              .select('caller_number')
+              .eq('call_id', appointment.call_id.toString())
+              .single();
+            
+            if (!callError && callData?.caller_number) {
+              callerName = callData.caller_number;
+            }
+          }
+          
+          appointmentsWithCallers.push({
+            ...appointment,
+            caller_name: callerName
+          });
+        }
         
         if (isMounted) {
           console.log("Dashboard data:", recordsData);
+          console.log("Appointments data:", appointmentsWithCallers);
           setCallRecords(recordsData || []);
+          setAppointments(appointmentsWithCallers);
           setLoading(false);
         }
       } catch (error) {
@@ -126,8 +170,8 @@ const DashboardHome = () => {
     record.created_at && isToday(parseISO(record.created_at))
   ).length;
   
-  const todayAppointments = callRecords.filter(record => 
-    record.appointment_status && record.created_at && isToday(parseISO(record.created_at))
+  const todayAppointments = appointments.filter(appointment => 
+    appointment.appointment_date && isToday(parseISO(appointment.appointment_date))
   ).length;
   
   const totalRecords = callRecords.length;
@@ -138,10 +182,22 @@ const DashboardHome = () => {
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 5);
 
-  // Create upcoming appointments list
-  const upcomingAppointments = callRecords
-    .filter(record => record.appointment_status && record.created_at && new Date(record.created_at) >= startOfDay(new Date()))
-    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+  // Create upcoming appointments list from actual appointments table
+  const upcomingAppointments = appointments
+    .filter(appointment => {
+      if (!appointment.appointment_date) return false;
+      try {
+        const appointmentDate = parseISO(appointment.appointment_date);
+        return appointmentDate >= startOfDay(new Date());
+      } catch (e) {
+        return false;
+      }
+    })
+    .sort((a, b) => {
+      const dateA = a.appointment_date ? parseISO(a.appointment_date) : new Date(0);
+      const dateB = b.appointment_date ? parseISO(b.appointment_date) : new Date(0);
+      return dateA.getTime() - dateB.getTime();
+    })
     .slice(0, 3);
   
   // Format time for display to match AppointmentsPage style (MMM dd, yyyy, HH:mm:ss)
@@ -199,21 +255,23 @@ const DashboardHome = () => {
   
   // Activity title and description formatting
   const getActivityDetails = (record: Tables<'call_history'>) => {
+    const callerName = record.caller_number || 'Unknown';
+    
     if (record.appointment_status) {
       return {
         title: `Appointment ${record.appointment_status || 'scheduled'}`,
-        desc: `Caller: ${record.caller_number}`
+        desc: `Caller: ${callerName}`
       };
     }
     if (record.call_start) {
       return {
         title: `Call ${record.call_status}`,
-        desc: `Caller: ${record.caller_number} - ${record.call_duration}`
+        desc: `Caller: ${callerName} - ${record.call_duration || 'Unknown duration'}`
       };
     }
     return {
       title: 'Record created',
-      desc: `Caller: ${record.caller_number}`
+      desc: `Caller: ${callerName}`
     };
   };
 
@@ -354,22 +412,26 @@ const DashboardHome = () => {
                         <div className="flex-shrink-0">
                           <Avatar className="h-10 w-10 border border-slate-700/30">
                             <AvatarFallback className="bg-gradient-to-br from-blue-600/30 to-purple-600/30 text-white">
-                              {apt.caller_number?.substring(0, 2) || 'PT'}
+                              {apt.patient_name?.substring(0, 2).toUpperCase() || 'PT'}
                             </AvatarFallback>
                           </Avatar>
                         </div>
                         <div>
                           <div className="text-sm font-medium text-white">
-                            {apt.caller_number}
+                            {apt.patient_name || 'Unknown Patient'}
+                          </div>
+                          <div className="text-xs text-slate-400 mb-1">
+                            Caller: {apt.caller_name || 'Unknown'}
                           </div>
                           <div className="flex items-center text-xs text-slate-400">
                             <Clock className="h-3 w-3 mr-1" />
-                            {apt.created_at && format(parseISO(apt.created_at), 'MMM d, h:mm a')}
+                            {apt.appointment_date && format(parseISO(apt.appointment_date), 'MMM d')}
+                            {apt.appointment_time && `, ${apt.appointment_time}`}
                           </div>
                         </div>
                       </div>
                       <div>
-                        {getStatusBadge(apt.appointment_status || 'scheduled')}
+                        <Badge className="bg-blue-600/20 text-blue-400 border-blue-500/30">Scheduled</Badge>
                       </div>
                     </div>
                   ))}

@@ -161,7 +161,10 @@ const CallHistoryPage = () => {
     if (days > 0) formatted += `${days}d `;
     if (hours > 0) formatted += `${hours}h `;
     if (minutes > 0) formatted += `${minutes}m `;
-    if (seconds > 0 || (days === 0 && hours === 0 && minutes === 0)) formatted += `${seconds}s`;
+    if (seconds > 0 || (days === 0 && hours === 0 && minutes === 0)) {
+      // Format seconds with 2 decimal places
+      formatted += `${seconds.toFixed(2)}s`;
+    }
 
     return formatted.trim();
   };
@@ -204,7 +207,11 @@ const CallHistoryPage = () => {
 
     if (searchQuery) {
       const searchLower = searchQuery.toLowerCase();
-      matchesSearch = (record.caller_number?.toLowerCase().includes(searchLower) || false);
+      // Search in caller number or "unknown" for patient name
+      matchesSearch = (
+        record.caller_number?.toLowerCase().includes(searchLower) || 
+        'unknown'.includes(searchLower)
+      );
     }
 
     if (statusFilter !== 'all') {
@@ -353,7 +360,7 @@ const CallHistoryPage = () => {
                         <div className="flex flex-col">
                           <div className="flex items-center">
                             <User size={14} className="mr-1 text-gray-400" />
-                            <span className="font-medium text-gray-200">{record.caller_number || 'Unknown'}</span>
+                            <span className="font-medium text-gray-200">Unknown</span>
                           </div>
                           {record.caller_number && (
                             <div className="flex items-center mt-1 text-xs text-gray-400">

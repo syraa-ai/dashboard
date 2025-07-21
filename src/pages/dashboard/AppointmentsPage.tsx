@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
+
+// Enhanced appointment type with caller information
+type AppointmentWithCaller = Tables<'appointment_details'> & {
+  caller_name?: string;
+};
 import { Calendar, User, Phone, Clock, Loader2, Edit, Check } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,11 +23,11 @@ import {
 } from "@/components/ui/dialog";
 
 const AppointmentsPage = () => {
-  const [appointments, setAppointments] = useState<Tables<'appointment_details'>[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentWithCaller[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedAppointment, setSelectedAppointment] = useState<Tables<'appointment_details'> | null>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithCaller | null>(null);
   const [newDateTime, setNewDateTime] = useState<Date | undefined>(undefined);
   const subscriptionRef = useRef<any>(null);
 
@@ -48,18 +53,61 @@ const AppointmentsPage = () => {
         return;
       }
       
-      const { data, error } = await supabase
+      // First, get all appointments for the user
+      const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('appointment_details')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching appointments:', error);
+      if (appointmentsError) {
+        console.error('Error fetching appointments:', appointmentsError);
         return;
       }
 
-      setAppointments(data || []);
+      // Get all call history data for this user to create a lookup map
+      const { data: callHistoryData, error: callHistoryError } = await supabase
+        .from('call_history')
+        .select('call_id, caller_number')
+        .eq('user_id', userId);
+
+      if (callHistoryError) {
+        console.error('Error fetching call history:', callHistoryError);
+      }
+
+      // Create a lookup map: call_id -> caller_number (phone number)
+      const callHistoryMap = new Map<string, string>();
+      if (callHistoryData) {
+        callHistoryData.forEach(call => {
+          if (call.call_id && call.caller_number) {
+            // Store with different key formats to handle data type mismatches
+            // appointment_details.call_id is bigint, call_history.call_id is text
+            callHistoryMap.set(String(call.call_id), call.caller_number);
+            callHistoryMap.set(call.call_id, call.caller_number);
+          }
+        });
+      }
+
+      // Match appointments with call history to get phone numbers
+      const appointmentsWithCallers: AppointmentWithCaller[] = [];
+      
+      for (const appointment of appointmentsData || []) {
+        let callerName = 'Unknown';
+        
+        if (appointment.call_id) {
+          // Try to find the phone number using the call_id
+          // Convert appointment.call_id (bigint) to string to match call_history.call_id (text)
+          const callIdAsString = String(appointment.call_id);
+          callerName = callHistoryMap.get(callIdAsString) || 'Unknown';
+        }
+        
+        appointmentsWithCallers.push({
+          ...appointment,
+          caller_name: callerName
+        });
+      }
+
+      setAppointments(appointmentsWithCallers);
     } catch (err) {
       console.error('Unexpected error while fetching appointments:', err);
     } finally {
@@ -117,7 +165,7 @@ const AppointmentsPage = () => {
     app.appointment_date && isValidDate(app.appointment_date) && !isPast(parseISO(app.appointment_date))
   ).length;
   
-  const handleRescheduleClick = (appointment: Tables<'appointment_details'>) => {
+  const handleRescheduleClick = (appointment: AppointmentWithCaller) => {
     setSelectedAppointment(appointment);
     
     if (appointment.appointment_date && isValidDate(appointment.appointment_date)) {
@@ -233,6 +281,7 @@ const AppointmentsPage = () => {
                   <tr className="border-b border-slate-700">
                     <th className="p-2 text-gray-300 font-semibold">Appointment Date & Time</th>
                     <th className="p-2 text-gray-300 font-semibold">Patient Name</th>
+                    <th className="p-2 text-gray-300 font-semibold">Caller Name</th>
                     <th className="p-2 text-gray-300 font-semibold">Reason</th>
                     <th className="p-2 text-gray-300 font-semibold">Actions</th>
                   </tr>
@@ -251,6 +300,7 @@ const AppointmentsPage = () => {
                         )}
                       </td>
                       <td className="p-2 text-white font-semibold">{appt.patient_name}</td>
+                      <td className="p-2 text-gray-200">{appt.caller_name}</td>
                       <td className="p-2 text-gray-200">{appt.appointment_reason}</td>
                       <td className="p-2">
                         <Button 
